@@ -9,8 +9,23 @@ import { assert } from "@here/harp-utils";
 import { IntersectParams } from "./IntersectParams";
 import { PickResult } from "./PickHandler";
 
-// Default sorting by distance first and then by reversed render order.
+// Default sorting by:
+// 1. reversed data source order (higher first)
+// 2. distance to the camera (closer first)
+// 3. reversed render order (higher first)
 function defaultSort(lhs: PickResult, rhs: PickResult) {
+    // HARP-14531: Compare by "dataSourceOrder" first,
+    // to ensure that picking results are sorted according to their layers.
+    // The bigger "dataSourceOrder" value is, the higher its stacked in the data model,
+    // meaning the higher it should be appear in the resulting picking collection.
+    // Defaulting "dataSourceOrder" to 0 (base layer) to not skip comparison when it's undefined - in that case
+    // sorting results would not be consistent, as some objects become compared by different criteria.
+    const lDataSourceOrder = lhs.dataSourceOrder ?? 0;
+    const rDataSourceOrder = rhs.dataSourceOrder ?? 0;
+    if (lDataSourceOrder !== rDataSourceOrder) {
+        return rDataSourceOrder - lDataSourceOrder;
+    }
+
     // HARP-14553: Set a distance tolerance to ignore small distance differences between 2D objects
     // that are supposed to lie on the same plane.
     const eps = 1e-4;
@@ -118,7 +133,7 @@ export class PickListener {
     }
 
     /**
-     * Returns the furtherst result collected so far, following the order documented in
+     * Returns the furthest result collected so far, following the order documented in
      * {@link PickListener.results}
      * @returns The furthest pick result, or `undefined` if no result was collected.
      */
@@ -133,9 +148,22 @@ export class PickListener {
     }
 
     private sortResults(): void {
-        if (!this.m_sorted) {
-            this.m_results.sort(defaultSort);
-            this.m_sorted = true;
+        if (this.m_sorted) {
+            return;
         }
+
+        // HARP-14531: group and sort zero-distance results separately and merge them back
+        // to ensure that screen-space objects (e.g. labels) are returned first,
+        // as they are currently rendered on top.
+        const zeroDistanceGroup: PickResult[] = [];
+        const nonZeroDistanceGroup: PickResult[] = [];
+
+        this.m_results.forEach(result =>
+            (result.distance === 0 ? zeroDistanceGroup : nonZeroDistanceGroup).push(result)
+        );
+        this.m_results = zeroDistanceGroup
+            .sort(defaultSort)
+            .concat(nonZeroDistanceGroup.sort(defaultSort));
+        this.m_sorted = true;
     }
 }

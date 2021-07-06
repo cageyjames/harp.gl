@@ -83,6 +83,11 @@ export interface PickResult {
     dataSourceName: string | undefined;
 
     /**
+     * Data source order, useful for sorting a collection of picking results.
+     */
+    dataSourceOrder: number | undefined;
+
+    /**
      * Render order of the intersected object.
      */
     renderOrder?: number;
@@ -90,7 +95,7 @@ export interface PickResult {
     /**
      * An optional feature ID of the picked object.
      * @remarks The ID may be assigned by the object's {@link DataSource}, for example in case of
-     * Optimized Map Vector (OMV) and GeoJSON datata sources.
+     * Optimized Map Vector (OMV) and GeoJSON data sources.
      */
     featureId?: number | string;
 
@@ -259,6 +264,7 @@ export class PickHandler {
             point: intersection.point,
             distance: intersection.distance,
             dataSourceName: intersection.object.userData?.dataSource,
+            dataSourceOrder: tile?.dataSource?.dataSourceOrder,
             intersection,
             tileKey: tile?.tileKey
         };
