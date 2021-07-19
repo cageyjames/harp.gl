@@ -170,6 +170,10 @@ yarn run typedoc
 
 It will output all documentation under `/dist/doc`.
 
+### Anything else
+
+eventually something will go here
+
 ## License
 
 Copyright (C) 2017-2021 HERE Europe B.V.
